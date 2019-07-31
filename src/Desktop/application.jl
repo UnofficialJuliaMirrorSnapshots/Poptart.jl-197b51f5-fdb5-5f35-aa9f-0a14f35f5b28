@@ -1,6 +1,8 @@
 # module Poptart.Desktop
 
 import ..Interfaces: put!, remove!
+using ..Animations: Animations
+using .Shortcuts: Shortcuts, Ctrl, Alt, Shift, Key, Conjunction
 using CImGui
 using .CImGui.GLFWBackend # ImGui_ImplGlfw_InitForOpenGL
 using .CImGui.OpenGLBackend # ImGui_ImplOpenGL3_NewFrame ImGui_ImplOpenGL3_Shutdown
@@ -83,17 +85,73 @@ function throttle(f, timeout; leading=true, trailing=false)
   end
 end
 
+function set_keyboard_callbacks(glwin::GLFW.Window)
+    keyboard_state = Dict{GLFW.Key, Bool}(
+        GLFW.KEY_LEFT_SHIFT    => false,
+        GLFW.KEY_RIGHT_SHIFT   => false,
+        GLFW.KEY_LEFT_CONTROL  => false,
+        GLFW.KEY_RIGHT_CONTROL => false,
+        GLFW.KEY_LEFT_ALT      => false,
+        GLFW.KEY_RIGHT_ALT     => false,
+        GLFW.KEY_LEFT_SUPER    => false,
+        GLFW.KEY_RIGHT_SUPER   => false,
+    )
+    keyboard_modifier_ranges = 340:347 # GLFW.KEY_LEFT_SHIFT:GLFW.KEY_RIGHT_SUPER
+
+    function conjunction_from_keyboard_state(key::Union{Nothing, Key})::Conjunction # keyboard_state
+        shift = keyboard_state[GLFW.KEY_LEFT_SHIFT] || keyboard_state[GLFW.KEY_RIGHT_SHIFT]
+        ctrl = keyboard_state[GLFW.KEY_LEFT_CONTROL] || keyboard_state[GLFW.KEY_RIGHT_CONTROL]
+        alt = keyboard_state[GLFW.KEY_LEFT_ALT] || keyboard_state[GLFW.KEY_RIGHT_ALT]
+        super = keyboard_state[GLFW.KEY_LEFT_SUPER] || keyboard_state[GLFW.KEY_RIGHT_SUPER]
+        Conjunction(shift, ctrl, alt, super, key)
+    end
+
+    block = function (_, key, scancode, action, mods)
+        keyval = Int(key)
+        if action == GLFW.PRESS
+            if keyval in keyboard_modifier_ranges
+                keyboard_state[key] = true
+                if !isempty(Shortcuts.pressed_modifier_callbacks)
+                    conjunction = conjunction_from_keyboard_state(nothing)
+                    if haskey(Shortcuts.pressed_modifier_callbacks, conjunction)
+                        Shortcuts.pressed_modifier_callbacks[conjunction]((pressed=conjunction,))
+                    end
+                end
+            else
+                k = Key(keyval)
+                conjunction = conjunction_from_keyboard_state(k)
+                if conjunction.shift || conjunction.ctrl || conjunction.alt || conjunction.super
+                    if !isempty(Shortcuts.pressed_conjunction_callbacks)
+                        if haskey(Shortcuts.pressed_conjunction_callbacks, conjunction)
+                            Shortcuts.pressed_conjunction_callbacks[conjunction]((pressed=conjunction,))
+                        end
+                    end
+                elseif !isempty(Shortcuts.pressed_key_callbacks)
+                    if haskey(Shortcuts.pressed_key_callbacks, k)
+                        Shortcuts.pressed_key_callbacks[k]((pressed=k,))
+                    end
+                end
+            end
+        elseif action == GLFW.RELEASE && keyval in keyboard_modifier_ranges
+            keyboard_state[key] = false
+        end
+    end
+    GLFW.SetKeyCallback(glwin, block)
+end
+
 function runloop(glsl_version, glwin::GLFW.Window, app::A) where {A <: UIApplication}
     ImGui_ImplGlfw_InitForOpenGL(glwin, true)
     ImGui_ImplOpenGL3_Init(glsl_version)
 
+    bgcolor = app.bgcolor
     heartbeat = throttle(60) do block # 1 minute
         block()
     end
+    under_revise = isdefined(Main, :Revise)
+    set_keyboard_callbacks(glwin)
 
-    app.pre_callback !== nothing && Base.invokelatest(app.pre_callback)
-
-    bgcolor = app.bgcolor
+    Animations.chronicle.isrunning = true
+    app.pre_block !== nothing && Base.invokelatest(app.pre_block)
     while app.isrunning && !GLFW.WindowShouldClose(glwin)
         yield()
 
@@ -103,7 +161,8 @@ function runloop(glsl_version, glwin::GLFW.Window, app::A) where {A <: UIApplica
         CImGui.NewFrame()
 
         try
-            Windows.setup_window.(app.imctx, app.windows, heartbeat)
+            Animations.chronicle.regulate(time())
+            Windows.setup_window.(app.imctx, app.windows, heartbeat, under_revise)
         catch err
             error_handling(err) && break
         end
@@ -116,8 +175,8 @@ function runloop(glsl_version, glwin::GLFW.Window, app::A) where {A <: UIApplica
 
         GLFW.SwapBuffers(glwin)
     end
-
-    app.post_callback !== nothing && Base.invokelatest(app.post_callback)
+    app.post_block !== nothing && Base.invokelatest(app.post_block)
+    Animations.chronicle.isrunning = false
 
     # cleanup
     ImGui_ImplOpenGL3_Shutdown()
@@ -130,10 +189,12 @@ end
 
 """
     Application(; title::String="App",
-                  frame::NamedTuple{(:width,:height)}=(width=400, height=300),
-                  windows=[Windows.Window(title="Title", frame=(x=0,y=0,frame...))],
-                  bgcolor=RGBA(0.10, 0.18, 0.24, 1),
-                  closenotify=Condition())
+                  frame::NamedTuple{(:width,:height)} = (width=400, height=300),
+                  windows = [Windows.Window(title="Title", frame=(x=0,y=0,frame...))],
+                  bgcolor = RGBA(0.10, 0.18, 0.24, 1),
+                  pre_block = nothing,
+                  post_block = nothing,
+                  closenotify = Condition())
 """
 mutable struct Application <: UIApplication
     props::Dict{Symbol,Any}
@@ -144,10 +205,12 @@ mutable struct Application <: UIApplication
     isrunning::Bool
 
     function Application(; title::String="App",
-                           frame::NamedTuple{(:width,:height)}=(width=400, height=300),
-                           windows=[Windows.Window(title="Title", frame=(x=0,y=0,frame...))],
-                           bgcolor=RGBA(0.10, 0.18, 0.24, 1),
-                           closenotify=Condition())
+                           frame::NamedTuple{(:width,:height)} = (width=400, height=300),
+                           windows = [Windows.Window(title="Title", frame=(x=0,y=0,frame...))],
+                           bgcolor = RGBA(0.10, 0.18, 0.24, 1),
+                           pre_block = nothing,
+                           post_block = nothing,
+                           closenotify = Condition())
         app_windows = isempty(windows) ? UIWindow[] : windows
         glwin = GLFW.GetCurrentContext()
         if glwin.handle !== C_NULL && haskey(env, glwin.handle)
@@ -162,7 +225,7 @@ mutable struct Application <: UIApplication
             env[glwin.handle] = app
             return app
         end
-        props = Dict(:title=>title, :frame=>frame, :bgcolor=>bgcolor, :pre_callback => nothing, :post_callback => nothing)
+        props = Dict(:title => title, :frame => frame, :bgcolor => bgcolor, :pre_block => pre_block, :post_block =>  post_block)
         app = new(props, app_windows, nothing, nothing, closenotify, true)
         do_resume(app)
         app
@@ -206,7 +269,7 @@ function do_resume(app::A) where {A <: UIApplication}
 end
 
 function properties(::A) where {A <: UIApplication}
-    (:title, :frame, :bgcolor, :pre_callback, :post_callback)
+    (:title, :frame, :bgcolor, :pre_block, :post_block, )
 end
 
 function Base.getproperty(app::A, prop::Symbol) where {A <: UIApplication}

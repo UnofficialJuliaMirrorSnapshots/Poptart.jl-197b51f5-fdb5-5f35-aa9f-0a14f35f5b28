@@ -4,6 +4,10 @@ function Base.:+(a::ImVec2, b::ImVec2)::ImVec2
     ImVec2(a.x + b.x, a.y + b.y)
 end
 
+function Base.:+(a::ImVec2, b::Tuple{Float64, Float64})::ImVec2
+    ImVec2(a.x + b[1], a.y + b[2])
+end
+
 function Base.:+(a::ImVec2, n::T)::ImVec2 where {T <: Real}
     ImVec2(a.x + n, a.y + n)
 end
@@ -31,6 +35,10 @@ end
 function imgui_offset_rect(offset::ImVec2, rect::Tuple{<:Real,<:Real,<:Real,<:Real})::Tuple{ImVec2,ImVec2}
     (x, y) = (rect[1], rect[2])
     (ImVec2(offset.x + x,  offset.y + y), ImVec2(offset.x + x + rect[3], offset.y + y + rect[4]))
+end
+
+function rect_contains_pos(rect::ImVec4, p::ImVec2)::Bool
+    p.x >= ImVec2(rect, min).x && p.y >= ImVec2(rect, min).y && p.x < ImVec2(rect, max).x && p.y < ImVec2(rect, max).y
 end
 
 function imgui_color(c::RGBA)::ImU32

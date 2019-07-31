@@ -19,13 +19,22 @@ include("Controls/button.jl")
 export Slider
 include("Controls/slider.jl")
 
+export Knob
+include("Controls/knob.jl")
+
 export Label
 include("Controls/label.jl")
 
 export Canvas
 include("Controls/canvas.jl")
 
-export ScatterPlot, LinePlot, Histogram
+export ScatterPlot, Spy, BarPlot, LinePlot, MultiLinePlot, Histogram
 include("Controls/plots.jl")
+
+export Group, Separator, SameLine, NewLine, Spacing
+include("Controls/layouts.jl")
+
+export MenuBar, Menu, MenuItem
+include("Controls/menus.jl")
 
 end # module Poptart.Controls

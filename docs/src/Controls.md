@@ -7,12 +7,29 @@ Controls
 didClick(block, control::C) where {C <: UIControl}
 ```
 
+# Mouse
+```@docs
+Mouse.leftClick
+```
+
 # widgets
 ```@docs
 Button
 Slider
+Knob
 Label
 ```
+
+# plots
+```@docs
+ScatterPlot
+Spy
+BarPlot
+LinePlot
+MultiLinePlot
+Histogram
+```
+
 # canvas
 ```@docs
 Canvas
@@ -21,7 +38,18 @@ Controls.remove!(canvas::Canvas, elements::Drawings.Drawing...)
 empty!(canvas::Canvas)
 ```
 
-# Mouse
+# layouts
 ```@docs
-Mouse.leftClick
+Group
+Separator
+SameLine
+NewLine
+Spacing
+```
+
+# menus
+```@docs
+MenuBar
+Menu
+MenuItem
 ```

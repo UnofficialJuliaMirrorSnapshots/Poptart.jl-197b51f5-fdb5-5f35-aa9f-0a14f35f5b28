@@ -7,6 +7,8 @@ export Windows, Window, put!, remove!
 include("Desktop/Windows.jl")
 using .Windows: Window
 
+include("Desktop/Shortcuts.jl")
+
 export Application, pause, resume
 include("Desktop/application.jl")
 
