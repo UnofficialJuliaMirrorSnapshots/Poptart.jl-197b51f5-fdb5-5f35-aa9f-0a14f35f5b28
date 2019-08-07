@@ -1,96 +1,169 @@
 # module Poptart.Drawings
 
-function scale(element::DrawingElement, x::Real)
-    scale(element, (x, x))
+function transform(tup::Tuple{Real,Real}, f, xy::Tuple{Real,Real})::Tuple{Real,Real}
+    broadcast(f, tup, xy)
 end
 
-function scale(element::DrawingElement, (x, y))
-    transform(element, *, (x, y))
+"""
+    translate(tup::Tuple{Real,Real}, xy::Tuple{Real,Real})
+"""
+function translate(tup::Tuple{Real,Real}, xy::Tuple{Real,Real})
+    transform(tup, +, xy)
 end
 
-function translate(element::DrawingElement, x::Real)
-    translate(element, (x, x))
-end
-
-function translate(element::DrawingElement, (x, y))
-    transform(element, +, (x, y))
-end
-
-function transform(element::Line, f, (x, y))::Line
-    points = (point -> broadcast(f, point, (x, y))).(element.points)
-    Line(points=points, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::Rect, f, (x, y))::Rect
-    from = broadcast(f, element.rect[1:2], (x, y))
-    to   = broadcast(f, element.rect[3:4], (x, y))
-    Rect(rect=(from..., to...), rounding=element.rounding, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::RectMultiColor, f, (x, y))::RectMultiColor
-    from = broadcast(f, element.rect[1:2], (x, y))
-    to   = broadcast(f, element.rect[3:4], (x, y))
-    RectMultiColor(rect=(from..., to...), left=element.left, top=element.top, right=element.right, bottom=element.bottom)
-end
-
-function transform(element::Circle, f, (x, y))::Circle
-    from = broadcast(f, element.rect[1:2], (x, y))
-    to   = broadcast(f, element.rect[3:4], (x, y))
-    Circle(rect=(from..., to...), thickness=element.thickness, color=element.color)
-end
-
-function transform(element::Triangle, f, (x, y))::Triangle
-    points = (point -> broadcast(f, point, (x, y))).(element.points)
-    Triangle(points=points, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::Arc, f, (x, y))::Arc
-    center = broadcast(f, element.center, (x, y))
-    Arc(center=center, radius=element.radius, angle=element.angle, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::Curve, f, (x, y))::Curve
-    startPoint = broadcast(f, element.startPoint, (x, y))
-    control1   = broadcast(f, element.control1, (x, y))
-    control2   = broadcast(f, element.control2, (x, y))
-    endPoint   = broadcast(f, element.endPoint, (x, y))
-    Curve(startPoint=startPoint, control1=control1, control2=control2, endPoint=endPoint, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::Polyline, f, (x, y))::Polyline
-    points = (point -> broadcast(f, point, (x, y))).(element.points)
-    Polyline(points=points, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::Polygon, f, (x, y))::Polygon
-    points = (point -> broadcast(f, point, (x, y))).(element.points)
-    Polygon(points=points, thickness=element.thickness, color=element.color)
-end
-
-function transform(element::TextBox, f, (x, y))::TextBox
-    from = broadcast(f, element.rect[1:2], (x, y))
-    to   = broadcast(f, element.rect[3:4], (x, y))
-    TextBox(text=element.text, rect=(from..., to...), color=element.color)
-end
-
-function scale(tup::Tuple{T,T}, x::Real) where {T <: Real}
-    scale(tup, (x, x))
-end
-
-function scale(tup::Tuple{T,T}, (x, y)) where {T <: Real}
-    transform(tup, *, (x, y))
-end
-
-function translate(tup::Tuple{T,T}, x::Real) where {T <: Real}
+"""
+    translate(tup::Tuple{Real,Real}, x::Real)
+"""
+function translate(tup::Tuple{Real,Real}, x::Real)
     translate(tup, (x, x))
 end
 
-function translate(tup::Tuple{T,T}, (x, y)) where {T <: Real}
-    transform(tup, +, (x, y))
+"""
+    scale(tup::Tuple{Real,Real}, xy::Tuple{Real,Real})
+"""
+function scale(tup::Tuple{Real,Real}, xy::Tuple{Real,Real})
+    transform(tup, *, xy)
 end
 
-function transform(tup::Tuple{T,T}, f, (x, y))::Tuple{T,T} where {T <: Real}
-    broadcast(f, tup, (x, y))
+"""
+    scale(tup::Tuple{Real,Real}, x::Real)
+"""
+function scale(tup::Tuple{Real,Real}, x::Real)
+    scale(tup, (x, x))
+end
+
+function transform(tup::Tuple{Real,Real,Real,Real}, f, xy::Tuple{Real,Real})::Tuple{Real,Real,Real,Real}
+    a = broadcast(f, tup[1:2], xy)
+    b = broadcast(f, tup[3:4], xy)
+    tuple(a..., b...)
+end
+
+"""
+    translate(tup::Tuple{Real,Real,Real,Real}, xy::Tuple{Real,Real})
+"""
+function translate(tup::Tuple{Real,Real,Real,Real}, xy::Tuple{Real,Real})
+    transform(tup, +, xy)
+end
+
+"""
+    translate(tup::Tuple{Real,Real,Real,Real}, x::Real)
+"""
+function translate(tup::Tuple{Real,Real,Real,Real}, x::Real)
+    translate(tup, (x, x))
+end
+
+"""
+    scale(tup::Tuple{Real,Real,Real,Real}, xy::Tuple{Real,Real})
+"""
+function scale(tup::Tuple{Real,Real,Real,Real}, xy::Tuple{Real,Real})
+    transform(tup, *, xy)
+end
+
+"""
+    scale(tup::Tuple{Real,Real,Real,Real}, x::Real)
+"""
+function scale(tup::Tuple{Real,Real,Real,Real}, x::Real)
+    scale(tup, (x, x))
+end
+
+"""
+    translate!(element::Union{Line, Triangle, Quad, Polyline, Polygon}, xy::Tuple{Real,Real})
+"""
+function translate!(element::Union{Line, Triangle, Quad, Polyline, Polygon}, xy::Tuple{Real,Real})
+    points = element.points
+    element.points = (tup -> translate(tup, xy)).(points)
+    (points = element.points, )
+end
+
+"""
+    scale!(element::Union{Line, Triangle, Quad, Polyline, Polygon}, xy::Tuple{Real,Real})
+"""
+function scale!(element::Union{Line, Triangle, Quad, Polyline, Polygon}, xy::Tuple{Real,Real})
+    points = element.points
+    element.points = (tup -> scale(tup, xy)).(points)
+    (points = element.points, )
+end
+
+"""
+    translate!(element::Union{Circle, Arc, Pie}, xy::Tuple{Real,Real})
+"""
+function translate!(element::Union{Circle, Arc, Pie}, xy::Tuple{Real,Real})
+    element.center = translate(element.center, xy)
+    (center = element.center, )
+end
+
+"""
+    translate!(element::Curve, xy::Tuple{Real,Real})
+"""
+function translate!(element::Curve, xy::Tuple{Real,Real})
+    element.startPoint = translate(element.startPoint, xy)
+    element.control1 = translate(element.control1, xy)
+    element.control2 = translate(element.control2, xy)
+    element.endPoint = translate(element.endPoint, xy)
+    (startPoint = element.startPoint, control1 = element.control1, control2 = element.control2, endPoint = element.endPoint)
+end
+
+"""
+    scale!(element::Curve, xy::Tuple{Real,Real})
+"""
+function scale!(element::Curve, xy::Tuple{Real,Real})
+    element.startPoint = scale(element.startPoint, xy)
+    element.control1 = scale(element.control1, xy)
+    element.control2 = scale(element.control2, xy)
+    element.endPoint = scale(element.endPoint, xy)
+    (startPoint = element.startPoint, control1 = element.control1, control2 = element.control2, endPoint = element.endPoint)
+end
+
+"""
+    translate!(element::Union{Rect, RectMultiColor, TextBox}, xy::Tuple{Real,Real})
+"""
+function translate!(element::Union{Rect, RectMultiColor, TextBox}, xy::Tuple{Real,Real})
+    element.rect = translate(element.rect, xy)
+    (rect = element.rect, )
+end
+
+"""
+    scale!(element::Union{Rect, RectMultiColor, TextBox}, xy::Tuple{Real,Real})
+"""
+function scale!(element::Union{Rect, RectMultiColor, TextBox}, xy::Tuple{Real,Real})
+    element.rect = scale(element.rect, xy)
+    (rect = element.rect, )
+end
+
+"""
+    translate!(element::ImageBox, xy::Tuple{Real,Real})
+"""
+function translate!(element::ImageBox, xy::Tuple{Real,Real})
+    if element.rect !== nothing
+        element.rect = translate(element.rect, xy)
+    end
+    (rect = element.rect, )
+end
+
+"""
+    scale!(element::ImageBox, xy::Tuple{Real,Real})
+"""
+function scale!(element::ImageBox, xy::Tuple{Real,Real})
+    if element.rect !== nothing
+        element.rect = scale(element.rect, xy)
+    end
+    (rect = element.rect, )
+end
+
+"""
+    scale!(element::Union{Line, Rect, RectMultiColor, Triangle, Quad, Polyline, Polygon, Curve, Rect, RectMultiColor, TextBox, ImageBox}, x::Real)
+"""
+function scale!(element::Union{Line, Rect, RectMultiColor, Triangle, Quad, Polyline, Polygon, Curve, Rect, RectMultiColor, TextBox, ImageBox}, x::Real)
+    scale!(element, (x, x))
+end
+
+"""
+    scale!(element::Union{Circle, Arc, Pie}, scale_center::Tuple{Real, Real}, scale_radius::Real)
+"""
+function scale!(element::Union{Circle, Arc, Pie}, scale_center::Tuple{Real, Real}, scale_radius::Real)
+    element.center = element.center .* scale_center
+    element.radius *= scale_radius
+    (center = element.center, radius = element.radius, )
 end
 
 # module Poptart.Drawings
